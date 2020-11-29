@@ -1,23 +1,23 @@
 package com.codingzero.utilities.rlf4j;
 
 import java.util.Collections;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Objects;
 
 public class ApiIdentity {
 
-    private final static  String ID_DELIMITER = "_";
+    private final static String ID_DELIMITER = "::";
 
-    private List<String> fields;
+    private Map<String, String> fields;
     private String id;
     private CriticalLevel criticalLevel;
     private ResourceUsage resourceUsage;
 
-    private ApiIdentity(List<String> fields,
+    private ApiIdentity(Map<String, String> fields,
                        CriticalLevel criticalLevel,
                        ResourceUsage resourceUsage) {
-        this.fields = Collections.unmodifiableList(fields);
+        this.fields = Collections.unmodifiableMap(fields);
         this.criticalLevel = criticalLevel;
         this.resourceUsage = resourceUsage;
         setId();
@@ -25,8 +25,8 @@ public class ApiIdentity {
 
     private void setId() {
         StringBuilder builder = new StringBuilder();
-        for (String field: fields) {
-            builder.append(field);
+        for (Map.Entry<String, String> entry: fields.entrySet()) {
+            builder.append(entry.getValue());
             builder.append(ID_DELIMITER);
         }
         if (builder.length() > 0) {
@@ -35,7 +35,7 @@ public class ApiIdentity {
         this.id = builder.toString();
     }
 
-    public List<String> getFields() {
+    public Map<String, String> getFields() {
         return fields;
     }
 
@@ -83,18 +83,18 @@ public class ApiIdentity {
 
     public static class Builder {
 
-        private List<String> fields;
+        private Map<String, String> fields;
         private CriticalLevel criticalLevel;
         private ResourceUsage resourceUsage;
 
         private Builder() {
-            fields = new LinkedList<>();
+            fields = new LinkedHashMap<>();
             criticalLevel = CriticalLevel.TO_BE_DECIDED;
             resourceUsage = ResourceUsage.TO_BE_DECIDED;
         }
 
-        public Builder field(String field) {
-            fields.add(field);
+        public Builder field(String name, String value) {
+            fields.put(name, value);
             return this;
         }
 
@@ -108,8 +108,8 @@ public class ApiIdentity {
             return this;
         }
 
-        public List<String> getFields() {
-            return Collections.unmodifiableList(fields);
+        public Map<String, String> getFields() {
+            return Collections.unmodifiableMap(fields);
         }
 
         public CriticalLevel getCriticalLevel() {

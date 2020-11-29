@@ -1,28 +1,43 @@
 package com.codingzero.utilities.rlf4j;
 
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.logging.Logger;
 
-public class RateLimiter {
+public class RateLimiter<T> {
 
     private static final Logger LOG = Logger.getLogger(RateLimiter.class.getName());
 
     private static final long DEFAULT_CONSUMING_TOKEN = 1;
 
-    private RateLimitRuleRegister register;
+    private RateLimitRule<T> currentRule;
+    private List<RateLimitRule<T>> rules;
 
-    private RateLimiter(RateLimitRuleRegister register) {
-        this.register = register;
+    private RateLimiter() {
+        this.rules = new LinkedList<>();
     }
 
-    public <R> R tryLimit(Object apiInstance, ApiExecution<R> execution) throws RateLimitExceedException {
+    public RateLimitRule<T> newRule() {
+        this.currentRule = new RateLimitRule<>();
+        this.rules.add(currentRule);
+        return this.currentRule;
+    }
+
+    public <R> R tryLimit(T apiInstance, ApiExecution<R> execution) throws RateLimitExceedException {
         checkForIllegalApiInstance(apiInstance);
         Map<ApiIdentity, RateLimitQuota> supplementRequiredQuotas = new LinkedHashMap<>();
         RateLimitExceedException exceedException = tryLimitWithRules(apiInstance, supplementRequiredQuotas);
         return processApiExecution(execution, exceedException, supplementRequiredQuotas);
+    }
+
+    public void tryLimitWithoutReturn(T apiInstance, ApiExecutionWithoutReturn execution) throws RateLimitExceedException {
+        checkForIllegalApiInstance(apiInstance);
+        Map<ApiIdentity, RateLimitQuota> supplementRequiredQuotas = new LinkedHashMap<>();
+        RateLimitExceedException exceedException = tryLimitWithRules(apiInstance, supplementRequiredQuotas);
+        processApiExecution(execution, exceedException, supplementRequiredQuotas);
     }
 
     private void checkForIllegalApiInstance(Object apiInstance) {
@@ -31,15 +46,11 @@ public class RateLimiter {
         }
     }
 
-    private RateLimitExceedException tryLimitWithRules(Object apiInstance,
+    private RateLimitExceedException tryLimitWithRules(T apiInstance,
                                                        Map<ApiIdentity, RateLimitQuota> supplementRequiredQuotas) {
-        List<RateLimitRuleRegister.RateLimitRule> rules = register.getRules();
-        for (RateLimitRuleRegister.RateLimitRule rule: rules) {
-            ApiIdentifier identifier = rule.getIdentifier();
+        for (RateLimitRule<T> rule: rules) {
+            ApiIdentifier<T> identifier = rule.getIdentifier();
             ApiIdentity identity = identifyApiWithValidation(identifier, apiInstance);
-            if (Objects.isNull(identity)) {
-                continue;
-            }
             RateLimitQuota quota = rule.getRateLimitQuota();
             ConsumptionReport report = tryConsume(identity, quota, DEFAULT_CONSUMING_TOKEN);
             if (!report.isConsumed()) {
@@ -52,17 +63,13 @@ public class RateLimiter {
         return null;
     }
 
-    private ApiIdentity identifyApiWithValidation(ApiIdentifier apiIdentifier,
-                                                  Object apiInstance) {
-        try {
-            ApiIdentity identity = apiIdentifier.identify(apiInstance);
-            if (identity.getId().trim().length() == 0) {
-                throw new IllegalArgumentException("API identity cannot be empty.");
-            }
-            return identity;
-        } catch (ClassCastException e) {
-            return null;
+    private ApiIdentity identifyApiWithValidation(ApiIdentifier<T> apiIdentifier,
+                                                  T apiInstance) {
+        ApiIdentity identity = apiIdentifier.identify(apiInstance);
+        if (identity.getId().trim().length() == 0) {
+            throw new IllegalArgumentException("API identity cannot be empty.");
         }
+        return identity;
     }
 
     private ConsumptionReport tryConsume(ApiIdentity identity, RateLimitQuota quota, long tokens) {
@@ -92,6 +99,18 @@ public class RateLimiter {
         return result;
     }
 
+    private void processApiExecution(ApiExecutionWithoutReturn execution,
+                                     RateLimitExceedException exceedException,
+                                     Map<ApiIdentity, RateLimitQuota> supplementRequiredQuotas) throws RateLimitExceedException {
+        if (!isLimited(exceedException)) {
+            execution.execute();
+        }
+        supplementQuotas(supplementRequiredQuotas);
+        if (isLimited(exceedException)) {
+            throw exceedException;
+        }
+    }
+
     private boolean isLimited(RateLimitExceedException exceedException) {
         return !Objects.isNull(exceedException);
     }
@@ -110,30 +129,41 @@ public class RateLimiter {
         }
     }
 
-    public static Builder builder() {
-        return new Builder();
+    public static <T> RateLimiter<T> newInstance() {
+        return new RateLimiter<>();
     }
 
-    public static class Builder {
+    public static class RateLimitRule<T> {
 
-        private RateLimitRuleRegister register;
+        private ApiIdentifier<T> identifier;
+        private RateLimitQuota rateLimitQuota;
 
-        private Builder() {
+        private RateLimitRule() {}
 
-        }
-
-        public Builder register(RateLimitRuleRegister register) {
-            this.register = register;
+        public RateLimitRule<T> quota(RateLimitQuota rateLimitQuota) {
+            this.rateLimitQuota = rateLimitQuota;
             return this;
         }
 
-        public RateLimitRuleRegister getRegister() {
-            return register;
+        public RateLimitRule<T> identifier(ApiIdentifier<T> identifier) {
+            this.identifier = identifier;
+            return this;
         }
 
-        public RateLimiter build() {
-            return new RateLimiter(getRegister());
+        public ApiIdentifier<T> getIdentifier() {
+            if (Objects.isNull(identifier)) {
+                throw new IllegalArgumentException("Api identifier cannot be null for rule, " + this);
+            }
+            return identifier;
         }
+
+        public RateLimitQuota getRateLimitQuota() {
+            if (Objects.isNull(rateLimitQuota)) {
+                throw new IllegalArgumentException("Rate limit quota cannot be null for rule, " + this);
+            }
+            return rateLimitQuota;
+        }
+
     }
 
 }

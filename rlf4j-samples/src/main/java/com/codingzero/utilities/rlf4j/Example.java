@@ -1,27 +1,35 @@
 package com.codingzero.utilities.rlf4j;
 
-import com.codingzero.utilities.rlf4j.checkers.DistributedRateLimitChecker;
+import com.codingzero.utilities.rlf4j.quotas.DistributedRateLimitQuota;
 
-import java.util.Arrays;
-import java.util.List;
+import javax.servlet.http.HttpServletRequest;
 
 public class Example {
 
     public static void main(String[] args) {
-        RateLimitRuleRegister register = RateLimitRuleRegister
-                .register(new HttpServletApiIdentifier())
-                .with(new DistributedRateLimitChecker())
-                .build();
-
-        RateLimiter rateLimiter = new RateLimiter(register);
-        String request = "";
-        Number requestNum = 1.0;
         Example example = new Example();
-        List<Number> numberList = Arrays.asList(1.0, 2.0);
-        List<String> strings = Arrays.asList("abc", "ccc");
-        rateLimiter.tryThrottle(request);
-
+        example.demoHttpServletRequestAPIRateLimit();
     }
 
+    public void demoHttpServletRequestAPIRateLimit() {
+
+//        RateLimitRuleRegister register = RateLimitRuleRegister
+//                .register(new HttpServletApiIdentifier()).with(new DistributedRateLimitQuota())
+//                .build();
+//
+//        RateLimiter rateLimiter = RateLimiter.builder().register(register).build();
+//        HttpServletRequest httpServletRequest = new HttpServletRequestSample();
+//        try {
+//            String content = rateLimiter.tryLimit(httpServletRequest, () -> helloWorld());
+//            System.out.println(content);
+//        } catch (RateLimitExceedException e) {
+//            e.printStackTrace();
+//        }
+    }
+
+    public  String helloWorld() {
+        System.out.println("helloWorld()");
+        return "Hello World";
+    }
 
 }

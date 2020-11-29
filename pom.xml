@@ -6,7 +6,7 @@
 
     <groupId>com.codingzero.utilities</groupId>
     <artifactId>rlf4j</artifactId>
-    <packaging>jar</packaging>
+    <packaging>pom</packaging>
     <version>0.1.0-SNAPSHOT</version>
 
     <organization>
@@ -35,14 +35,18 @@
 
     <scm>
         <connection>scm:git:git://github.com/Coding-Zero/rlf4j.git</connection>
-        <developerConnection>scm:git:ssh://github.com:rlf4j.git</developerConnection>
+        <developerConnection>scm:git:ssh://github.com:Coding-Zero/rlf4j.git</developerConnection>
         <url>https://github.com/Coding-Zero/rlf4j/tree/master</url>
     </scm>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.deploy.skip>true</maven.deploy.skip>
+    </properties>
 
     <modules>
         <module>rlf4j-core</module>
         <module>rlf4j-bucket4j</module>
-        <module>rlf4j-samples</module>
     </modules>
 
     <build>

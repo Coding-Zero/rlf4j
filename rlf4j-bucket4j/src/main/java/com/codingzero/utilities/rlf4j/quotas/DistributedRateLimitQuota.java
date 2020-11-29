@@ -39,7 +39,8 @@ public abstract class DistributedRateLimitQuota implements RateLimitQuota {
 
     private Bucket getBucket(ApiIdentity identity) {
         Bandwidth bandwidth = getBandwidth(identity);
-        return buckets.getProxy(identity.getId(), getBucketConfiguration(bandwidth));
+        String key = getBucketKey(identity);
+        return buckets.getProxy(key, getBucketConfiguration(bandwidth));
     }
 
     private Supplier<BucketConfiguration> getBucketConfiguration(Bandwidth bandwidth) {
@@ -47,6 +48,8 @@ public abstract class DistributedRateLimitQuota implements RateLimitQuota {
     }
 
     abstract protected Bandwidth getBandwidth(ApiIdentity identity);
+
+    abstract protected String getBucketKey(ApiIdentity identity);
 
     @Override
     public boolean tryConsume(ApiIdentity identity, long token) {

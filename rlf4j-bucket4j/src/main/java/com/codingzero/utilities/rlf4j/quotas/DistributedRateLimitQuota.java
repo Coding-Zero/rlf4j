@@ -16,23 +16,37 @@ import javax.cache.Cache;
 import javax.cache.CacheManager;
 import javax.cache.Caching;
 import javax.cache.configuration.MutableConfiguration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Supplier;
 
 public abstract class DistributedRateLimitQuota implements RateLimitQuota {
 
-    private ProxyManager<String> buckets;
-    private String cacheName;
+    private List<ProxyManager<String>> buckets;
+    private final int numberOfBuckets;
 
-    public DistributedRateLimitQuota(String cacheName) {
-        this(cacheName, Caching.getCachingProvider().getCacheManager());
+    public DistributedRateLimitQuota(int numberOfBuckets, String cacheName) {
+        this(numberOfBuckets, cacheName, Caching.getCachingProvider().getCacheManager());
     }
 
-    public DistributedRateLimitQuota(String cacheName, CacheManager cacheManager) {
-        this.cacheName = cacheName;
-        this.buckets = Bucket4j.extension(JCache.class).proxyManagerForCache(getCache(cacheManager));
+    public DistributedRateLimitQuota(int numberOfBuckets, String cacheName, CacheManager cacheManager) {
+        this.numberOfBuckets = numberOfBuckets;
+        this.buckets = new ArrayList<>(numberOfBuckets);
+        initBuckets(cacheName, cacheManager);
     }
 
-    private Cache<String, GridBucketState> getCache(CacheManager cacheManager) {
+    private void initBuckets(String cacheName, CacheManager cacheManager) {
+        for (int i = 0; i < numberOfBuckets; i ++) {
+            cacheName = cacheName + "-" + i;
+            this.buckets.add(
+                    Bucket4j.extension(JCache.class)
+                            .proxyManagerForCache(
+                                    createCache(cacheName, cacheManager))
+            );
+        }
+    }
+
+    private Cache<String, GridBucketState> createCache(String cacheName, CacheManager cacheManager) {
         MutableConfiguration<String, GridBucketState> configuration = new MutableConfiguration<>();
         return cacheManager.createCache(cacheName, configuration);
     }
@@ -40,7 +54,12 @@ public abstract class DistributedRateLimitQuota implements RateLimitQuota {
     private Bucket getBucket(ApiIdentity identity) {
         Bandwidth bandwidth = getBandwidth(identity);
         String key = getBucketKey(identity);
-        return buckets.getProxy(key, getBucketConfiguration(bandwidth));
+        int bucketIndex = getBucketIndex(key);
+        return buckets.get(bucketIndex).getProxy(key, getBucketConfiguration(bandwidth));
+    }
+
+    private int getBucketIndex(String key) {
+        return key.hashCode() % numberOfBuckets;
     }
 
     private Supplier<BucketConfiguration> getBucketConfiguration(Bandwidth bandwidth) {

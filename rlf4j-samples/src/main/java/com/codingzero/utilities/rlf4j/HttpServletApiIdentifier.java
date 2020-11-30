@@ -9,4 +9,5 @@ public final class HttpServletApiIdentifier implements ApiIdentifier<HttpServlet
     public ApiIdentity identify(HttpServletRequest input) {
         return new ApiIdentity(Arrays.asList("/api/hello"),  CriticalLevel.TO_BE_DECIDED, ResourceUsage.TO_BE_DECIDED);
     }
+
 }

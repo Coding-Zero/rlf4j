@@ -1,16 +1,12 @@
 package com.codingzero.utilities.rlf4j;
 
 import javax.servlet.http.HttpServletRequest;
+import java.util.Arrays;
 
 public final class HttpServletApiIdentifier implements ApiIdentifier<HttpServletRequest> {
 
     @Override
-    public boolean isSupported(Object input) {
-        return HttpServletRequest.class.isInstance(input);
-    }
-
-    @Override
-    public ApiIdentity parse(HttpServletRequest input) {
-        return null;
+    public ApiIdentity identify(HttpServletRequest input) {
+        return new ApiIdentity(Arrays.asList("/api/hello"),  CriticalLevel.TO_BE_DECIDED, ResourceUsage.TO_BE_DECIDED);
     }
 }

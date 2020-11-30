@@ -1,6 +1,7 @@
 package com.codingzero.utilities.rlf4j;
 
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 
@@ -13,7 +14,7 @@ public class ApiIdentity {
     private CriticalLevel criticalLevel;
     private ResourceUsage resourceUsage;
 
-    public ApiIdentity(List<String> fields,
+    private ApiIdentity(List<String> fields,
                        CriticalLevel criticalLevel,
                        ResourceUsage resourceUsage) {
         this.fields = Collections.unmodifiableList(fields);
@@ -74,5 +75,54 @@ public class ApiIdentity {
     @Override
     public int hashCode() {
         return Objects.hash(getFields(), getId(), getCriticalLevel(), getResourceUsage());
+    }
+
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    public static class Builder {
+
+        private List<String> fields;
+        private CriticalLevel criticalLevel;
+        private ResourceUsage resourceUsage;
+
+        private Builder() {
+            fields = new LinkedList<>();
+            criticalLevel = CriticalLevel.TO_BE_DECIDED;
+            resourceUsage = ResourceUsage.TO_BE_DECIDED;
+        }
+
+        public Builder field(String field) {
+            fields.add(field);
+            return this;
+        }
+
+        public Builder criticalLevel(CriticalLevel criticalLevel) {
+            this.criticalLevel = criticalLevel;
+            return this;
+        }
+
+        public Builder resourceUsage(ResourceUsage resourceUsage) {
+            this.resourceUsage = resourceUsage;
+            return this;
+        }
+
+        public List<String> getFields() {
+            return Collections.unmodifiableList(fields);
+        }
+
+        public CriticalLevel getCriticalLevel() {
+            return criticalLevel;
+        }
+
+        public ResourceUsage getResourceUsage() {
+            return resourceUsage;
+        }
+
+        public ApiIdentity build() {
+            return new ApiIdentity(getFields(), getCriticalLevel(), getResourceUsage());
+        }
+
     }
 }

@@ -48,7 +48,6 @@ public abstract class DistributedRateLimitQuota implements RateLimitQuota {
 
     abstract protected Bandwidth getBandwidth(ApiIdentity identity);
 
-
     @Override
     public boolean tryConsume(ApiIdentity identity, long token) {
         return false;

@@ -16,7 +16,7 @@
     <properties>
         <bucket4j.version>4.10.0</bucket4j.version>
         <redisson.version>3.13.6</redisson.version>
-        <cache-api.version>1.0.0</cache-api.version>
+        <cache-api.version>1.1.1</cache-api.version>
     </properties>
 
     <dependencies>

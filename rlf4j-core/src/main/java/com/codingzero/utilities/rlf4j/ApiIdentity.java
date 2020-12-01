@@ -30,7 +30,7 @@ public class ApiIdentity {
             builder.append(ID_DELIMITER);
         }
         if (builder.length() > 0) {
-            builder = builder.deleteCharAt(builder.lastIndexOf(ID_DELIMITER));
+            builder = builder.delete(builder.length() - 2, builder.length());
         }
         this.id = builder.toString();
     }

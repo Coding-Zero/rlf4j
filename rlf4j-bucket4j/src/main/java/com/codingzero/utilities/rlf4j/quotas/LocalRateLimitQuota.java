@@ -8,18 +8,22 @@ import io.github.bucket4j.Bucket;
 import io.github.bucket4j.Bucket4j;
 import io.github.bucket4j.ConsumptionProbe;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 public abstract class LocalRateLimitQuota implements RateLimitQuota {
 
     private static final int DEFAULT_BUCKETS_SIZE = 25;
 
     private Map<String, Bucket> buckets;
+    private Lock lock = new ReentrantLock();
 
     public LocalRateLimitQuota() {
-        this.buckets = new ConcurrentHashMap<>(DEFAULT_BUCKETS_SIZE);
+        this.buckets = new HashMap<>(DEFAULT_BUCKETS_SIZE);
     }
 
     @Override
@@ -51,9 +55,19 @@ public abstract class LocalRateLimitQuota implements RateLimitQuota {
         String key = getBucketKey(identity);
         Bucket bucket = buckets.get(key);
         if (Objects.isNull(bucket)) {
-            Bandwidth limit = getBandwidth(identity);
-            bucket = createBucket(limit);
-            buckets.put(key, bucket);
+            lock.lock();
+            try {
+                //try to get one for other thread create a bucket with the same key.
+                bucket = buckets.get(key);
+                if (!Objects.isNull(bucket)) {
+                    return bucket;
+                }
+                Bandwidth limit = getBandwidth(identity);
+                bucket = createBucket(limit);
+                buckets.put(key, bucket);
+            } finally {
+                lock.unlock();
+            }
         }
         return bucket;
     }

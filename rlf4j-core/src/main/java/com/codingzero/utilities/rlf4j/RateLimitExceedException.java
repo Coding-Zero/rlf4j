@@ -9,7 +9,7 @@ public class RateLimitExceedException extends Exception {
     public RateLimitExceedException(ApiIdentity apiIdentity,
                                     ConsumptionReport consumptionReport,
                                     RateLimitQuota rateLimitQuota) {
-        super("API \'" + apiIdentity.getId() + "\' has exceed the rate limit quota.");
+        super("API \'" + apiIdentity.getId() + "\' has exceed the rate limit quota, " + rateLimitQuota.getClass());
         this.apiIdentity = apiIdentity;
         this.consumptionReport = consumptionReport;
         this.rateLimitQuota = rateLimitQuota;

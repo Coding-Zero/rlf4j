@@ -51,13 +51,14 @@ public class RateLimiter<T> {
         for (RateLimitRule<T> rule: rules) {
             ApiIdentifier<T> identifier = rule.getIdentifier();
             ApiIdentity identity = identifyApiWithValidation(identifier, apiInstance);
-            RateLimitQuota quota = rule.getRateLimitQuota();
-            ConsumptionReport report = tryConsume(identity, quota, DEFAULT_CONSUMING_TOKEN);
-            if (!report.isConsumed()) {
-                return new RateLimitExceedException(identity, report, quota);
-            }
-            if (quota.isSupplementRequired()) {
-                supplementRequiredQuotas.put(identity, quota);
+            for (RateLimitQuota quota: rule.getRateLimitQuotas()) {
+                ConsumptionReport report = tryConsume(identity, quota, DEFAULT_CONSUMING_TOKEN);
+                if (!report.isConsumed()) {
+                    return new RateLimitExceedException(identity, report, quota);
+                }
+                if (quota.isSupplementRequired()) {
+                    supplementRequiredQuotas.put(identity, quota);
+                }
             }
         }
         return null;
@@ -136,12 +137,14 @@ public class RateLimiter<T> {
     public static class RateLimitRule<T> {
 
         private ApiIdentifier<T> identifier;
-        private RateLimitQuota rateLimitQuota;
+        private List<RateLimitQuota> rateLimitQuotas;
 
-        private RateLimitRule() {}
+        private RateLimitRule() {
+            this.rateLimitQuotas = new LinkedList<>();
+        }
 
         public RateLimitRule<T> quota(RateLimitQuota rateLimitQuota) {
-            this.rateLimitQuota = rateLimitQuota;
+            this.rateLimitQuotas.add(rateLimitQuota);
             return this;
         }
 
@@ -157,11 +160,11 @@ public class RateLimiter<T> {
             return identifier;
         }
 
-        public RateLimitQuota getRateLimitQuota() {
-            if (Objects.isNull(rateLimitQuota)) {
-                throw new IllegalArgumentException("Rate limit quota cannot be null for rule, " + this);
+        public List<RateLimitQuota> getRateLimitQuotas() {
+            if (rateLimitQuotas.isEmpty()) {
+                throw new IllegalArgumentException("Rate limit quota cannot be empty for rule, " + this);
             }
-            return rateLimitQuota;
+            return rateLimitQuotas;
         }
 
     }

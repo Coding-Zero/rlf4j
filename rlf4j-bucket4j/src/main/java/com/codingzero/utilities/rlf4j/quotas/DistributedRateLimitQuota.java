@@ -59,7 +59,7 @@ public abstract class DistributedRateLimitQuota implements RateLimitQuota {
     }
 
     private int getBucketIndex(String key) {
-        return key.hashCode() % numberOfBuckets;
+        return Math.abs(key.hashCode()) % numberOfBuckets;
     }
 
     private Supplier<BucketConfiguration> getBucketConfiguration(Bandwidth bandwidth) {

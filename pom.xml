@@ -7,7 +7,7 @@
     <groupId>com.codingzero.utilities</groupId>
     <artifactId>rlf4j</artifactId>
     <packaging>pom</packaging>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
 
     <organization>
         <name>CodingZero</name>

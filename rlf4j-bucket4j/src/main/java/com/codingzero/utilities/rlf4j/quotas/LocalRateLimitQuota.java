@@ -53,7 +53,7 @@ public abstract class LocalRateLimitQuota implements RateLimitQuota {
         if (Objects.isNull(bucket)) {
             Bandwidth limit = getBandwidth(identity);
             bucket = createBucket(limit);
-            buckets.put(identity.getId(), bucket);
+            buckets.put(key, bucket);
         }
         return bucket;
     }

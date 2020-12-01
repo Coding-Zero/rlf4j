@@ -37,11 +37,11 @@ public abstract class DistributedRateLimitQuota implements RateLimitQuota {
 
     private void initBuckets(String cacheName, CacheManager cacheManager) {
         for (int i = 0; i < numberOfBuckets; i ++) {
-            cacheName = cacheName + "-" + i;
+            String name = cacheName + "-" + i;
             this.buckets.add(
                     Bucket4j.extension(JCache.class)
                             .proxyManagerForCache(
-                                    createCache(cacheName, cacheManager))
+                                    createCache(name, cacheManager))
             );
         }
     }

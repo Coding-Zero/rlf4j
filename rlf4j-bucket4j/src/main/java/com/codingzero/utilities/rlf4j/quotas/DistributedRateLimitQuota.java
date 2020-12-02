@@ -91,4 +91,10 @@ public abstract class DistributedRateLimitQuota implements RateLimitQuota {
         }
     }
 
+    @Override
+    public void supplement(ApiIdentity identity, long token) {
+        Bucket bucket = getBucket(identity);
+        bucket.addTokens(token);
+    }
+
 }

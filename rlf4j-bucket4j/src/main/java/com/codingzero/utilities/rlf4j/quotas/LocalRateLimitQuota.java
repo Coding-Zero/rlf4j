@@ -11,7 +11,6 @@ import io.github.bucket4j.ConsumptionProbe;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -76,4 +75,10 @@ public abstract class LocalRateLimitQuota implements RateLimitQuota {
         return Bucket4j.builder().addLimit(limit).build();
     }
 
+    @Override
+    public void supplement(ApiIdentity identity, long token) {
+        Bucket bucket = getBucket(identity);
+        bucket.addTokens(token);
+    }
+    
 }

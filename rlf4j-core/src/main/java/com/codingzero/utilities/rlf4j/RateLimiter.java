@@ -28,14 +28,14 @@ public class RateLimiter<T> {
 
     public <R> R tryLimit(T apiInstance, ApiExecution<R> execution) throws RateLimitExceedException {
         checkForIllegalApiInstance(apiInstance);
-        Map<ApiIdentity, RateLimitQuota> supplementRequiredQuotas = new LinkedHashMap<>();
+        Map<ApiIdentity, ApiQuota> supplementRequiredQuotas = new LinkedHashMap<>();
         RateLimitExceedException exceedException = tryLimitWithRules(apiInstance, supplementRequiredQuotas);
         return processApiExecution(execution, exceedException, supplementRequiredQuotas);
     }
 
     public void tryLimitWithoutReturn(T apiInstance, ApiExecutionWithoutReturn execution) throws RateLimitExceedException {
         checkForIllegalApiInstance(apiInstance);
-        Map<ApiIdentity, RateLimitQuota> supplementRequiredQuotas = new LinkedHashMap<>();
+        Map<ApiIdentity, ApiQuota> supplementRequiredQuotas = new LinkedHashMap<>();
         RateLimitExceedException exceedException = tryLimitWithRules(apiInstance, supplementRequiredQuotas);
         processApiExecution(execution, exceedException, supplementRequiredQuotas);
     }
@@ -47,11 +47,11 @@ public class RateLimiter<T> {
     }
 
     private RateLimitExceedException tryLimitWithRules(T apiInstance,
-                                                       Map<ApiIdentity, RateLimitQuota> supplementRequiredQuotas) {
+                                                       Map<ApiIdentity, ApiQuota> supplementRequiredQuotas) {
         for (RateLimitRule<T> rule: rules) {
             ApiIdentifier<T> identifier = rule.getIdentifier();
             ApiIdentity identity = identifyApiWithValidation(identifier, apiInstance);
-            for (RateLimitQuota quota: rule.getRateLimitQuotas()) {
+            for (ApiQuota quota: rule.getRateLimitQuotas()) {
                 ConsumptionReport report = tryConsume(identity, quota, DEFAULT_CONSUMING_TOKEN);
                 if (!report.isConsumed()) {
                     return new RateLimitExceedException(identity, report, quota);
@@ -73,7 +73,7 @@ public class RateLimiter<T> {
         return identity;
     }
 
-    private ConsumptionReport tryConsume(ApiIdentity identity, RateLimitQuota quota, long tokens) {
+    private ConsumptionReport tryConsume(ApiIdentity identity, ApiQuota quota, long tokens) {
         if (quota.isConsumptionReportSupported()) {
             return quota.tryConsumeAndRetuningReport(identity, tokens);
         } else {
@@ -88,7 +88,7 @@ public class RateLimiter<T> {
 
     private <R> R processApiExecution(ApiExecution<R> execution,
                                       RateLimitExceedException exceedException,
-                                      Map<ApiIdentity, RateLimitQuota> supplementRequiredQuotas) throws RateLimitExceedException {
+                                      Map<ApiIdentity, ApiQuota> supplementRequiredQuotas) throws RateLimitExceedException {
         R result = null;
         if (!isLimited(exceedException)) {
             result = execution.execute();
@@ -102,7 +102,7 @@ public class RateLimiter<T> {
 
     private void processApiExecution(ApiExecutionWithoutReturn execution,
                                      RateLimitExceedException exceedException,
-                                     Map<ApiIdentity, RateLimitQuota> supplementRequiredQuotas) throws RateLimitExceedException {
+                                     Map<ApiIdentity, ApiQuota> supplementRequiredQuotas) throws RateLimitExceedException {
         if (!isLimited(exceedException)) {
             execution.execute();
         }
@@ -116,10 +116,10 @@ public class RateLimiter<T> {
         return !Objects.isNull(exceedException);
     }
 
-    private void supplementQuotas(Map<ApiIdentity, RateLimitQuota> supplementRequiredQuotas) {
-        for (Map.Entry<ApiIdentity, RateLimitQuota> entry: supplementRequiredQuotas.entrySet()) {
+    private void supplementQuotas(Map<ApiIdentity, ApiQuota> supplementRequiredQuotas) {
+        for (Map.Entry<ApiIdentity, ApiQuota> entry: supplementRequiredQuotas.entrySet()) {
             ApiIdentity identity = entry.getKey();
-            RateLimitQuota quota = entry.getValue();
+            ApiQuota quota = entry.getValue();
             try {
                 quota.supplement(identity, DEFAULT_CONSUMING_TOKEN);
             } catch (Throwable throwable) {
@@ -137,14 +137,14 @@ public class RateLimiter<T> {
     public static class RateLimitRule<T> {
 
         private ApiIdentifier<T> identifier;
-        private List<RateLimitQuota> rateLimitQuotas;
+        private List<ApiQuota> apiQuotas;
 
         private RateLimitRule() {
-            this.rateLimitQuotas = new LinkedList<>();
+            this.apiQuotas = new LinkedList<>();
         }
 
-        public RateLimitRule<T> quota(RateLimitQuota rateLimitQuota) {
-            this.rateLimitQuotas.add(rateLimitQuota);
+        public RateLimitRule<T> quota(ApiQuota apiQuota) {
+            this.apiQuotas.add(apiQuota);
             return this;
         }
 
@@ -160,11 +160,11 @@ public class RateLimiter<T> {
             return identifier;
         }
 
-        public List<RateLimitQuota> getRateLimitQuotas() {
-            if (rateLimitQuotas.isEmpty()) {
+        public List<ApiQuota> getRateLimitQuotas() {
+            if (apiQuotas.isEmpty()) {
                 throw new IllegalArgumentException("Rate limit quota cannot be empty for rule, " + this);
             }
-            return rateLimitQuotas;
+            return apiQuotas;
         }
 
     }

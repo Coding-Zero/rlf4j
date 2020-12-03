@@ -4,15 +4,15 @@ public class RateLimitExceedException extends Exception {
 
     private ApiIdentity apiIdentity;
     private ConsumptionReport consumptionReport;
-    private RateLimitQuota rateLimitQuota;
+    private ApiQuota apiQuota;
 
     public RateLimitExceedException(ApiIdentity apiIdentity,
                                     ConsumptionReport consumptionReport,
-                                    RateLimitQuota rateLimitQuota) {
-        super("API \'" + apiIdentity.getId() + "\' has exceed the rate limit quota, " + rateLimitQuota.getClass());
+                                    ApiQuota apiQuota) {
+        super("API \'" + apiIdentity.getId() + "\' has exceed the rate limit quota, " + apiQuota.getClass());
         this.apiIdentity = apiIdentity;
         this.consumptionReport = consumptionReport;
-        this.rateLimitQuota = rateLimitQuota;
+        this.apiQuota = apiQuota;
     }
 
     public ApiIdentity getApiIdentity() {
@@ -23,7 +23,7 @@ public class RateLimitExceedException extends Exception {
         return consumptionReport;
     }
 
-    public RateLimitQuota getRateLimitQuota() {
-        return rateLimitQuota;
+    public ApiQuota getRateLimitQuota() {
+        return apiQuota;
     }
 }

@@ -12,14 +12,16 @@ public abstract class ConfigurableLocalApiQuota extends ConfigurableApiQuota {
 
     private LocalBucketProvider bucketProvider;
 
-    public ConfigurableLocalApiQuota(ApiQuotaConfig config) {
-        this(config, new LocalBucketProvider());
-    }
-
     public ConfigurableLocalApiQuota(ApiQuotaConfig config,
                                      LocalBucketProvider bucketProvider) {
         super(config);
         this.bucketProvider = bucketProvider;
+    }
+
+    @Override
+    public void updateConfig(ApiQuotaConfig config) {
+        super.updateConfig(config);
+        bucketProvider.clean();
     }
 
     @Override

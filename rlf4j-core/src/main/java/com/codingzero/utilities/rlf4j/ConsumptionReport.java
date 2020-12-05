@@ -37,6 +37,15 @@ public class ConsumptionReport {
         return builder;
     }
 
+    @Override
+    public String toString() {
+        return "ConsumptionReport{" +
+                "isConsumed=" + isConsumed +
+                ", remainingQuota=" + remainingQuota +
+                ", consumedQuota=" + consumedQuota +
+                '}';
+    }
+
     public static class Builder {
         private boolean isConsumed;
         private long remainingQuota;

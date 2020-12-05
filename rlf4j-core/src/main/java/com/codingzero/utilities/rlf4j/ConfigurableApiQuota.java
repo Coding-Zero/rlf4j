@@ -1,36 +1,49 @@
 package com.codingzero.utilities.rlf4j;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public abstract class ConfigurableApiQuota implements ApiQuota {
 
-    private static final int CONFIGS_SIZE = 2;
-    private static final int DEFAULT_CONFIG_INDEX = 0;
-    private static final int CONFIG_INDEX_UPPER_BOUND = 1;
-
-    private List<ApiQuotaConfig> configs;
-    private AtomicInteger currentConfigIndex;
+    private ApiQuotaConfig mainConfig;
+    private ApiQuotaConfig secondaryConfig;
+    private final AtomicBoolean isMainBuckets;
 
     public ConfigurableApiQuota(ApiQuotaConfig config) {
-        this.configs = new ArrayList<>(CONFIGS_SIZE);
-        this.currentConfigIndex = new AtomicInteger(DEFAULT_CONFIG_INDEX);
-        this.configs.set(DEFAULT_CONFIG_INDEX, config);
+        checkForMandatoryQuotaRules(config);
+        this.mainConfig = config;
+        this.secondaryConfig = null;
+        this.isMainBuckets = new AtomicBoolean(true);
     }
 
     public void updateConfig(ApiQuotaConfig config) {
-        int nextIndex = getNextConfigIndex();
-        configs.set(nextIndex, config);
-        currentConfigIndex.set(nextIndex);
+        checkForMandatoryQuotaRules(config);
+        if (isMainBuckets.get()) {
+            this.secondaryConfig = config;
+            isMainBuckets.set(false);
+        } else {
+            this.mainConfig = config;
+            isMainBuckets.set(true);
+        }
     }
 
     public ApiQuotaConfig getCurrentConfig() {
-        return configs.get(currentConfigIndex.get());
+        if (isMainBuckets.get()) {
+            return this.mainConfig;
+        } else {
+            return this.secondaryConfig;
+        }
     }
 
-    private int getNextConfigIndex() {
-        return CONFIG_INDEX_UPPER_BOUND - currentConfigIndex.get();
+    private void checkForMandatoryQuotaRules(ApiQuotaConfig config) {
+        Set<String> names = new HashSet<>(getMandatoryQuotaRuleNames());
+        for (ApiQuotaRule rule: config.getRules()) {
+            names.remove(rule.getName());
+        }
+        if (names.size() > 0) {
+            throw new IllegalArgumentException("Quota rule(s), " + names + " are required, please provide.");
+        }
     }
 
     @Override
@@ -46,7 +59,7 @@ public abstract class ConfigurableApiQuota implements ApiQuota {
     @Override
     public boolean tryConsume(ApiIdentity identity, long token) {
         if (getCurrentConfig().isDisabled()) {
-            return false;
+            return true;
         }
         return tryConsumeInternally(identity, token);
     }
@@ -54,7 +67,7 @@ public abstract class ConfigurableApiQuota implements ApiQuota {
     @Override
     public ConsumptionReport tryConsumeAndRetuningReport(ApiIdentity identity, long token) {
         if (getCurrentConfig().isDisabled()) {
-            return ConsumptionReport.notConsumed().build();
+            return ConsumptionReport.consumed(token).remainingQuota(Long.MAX_VALUE).build();
         }
         return tryConsumeAndRetuningReportInternally(identity, token);
     }
@@ -64,5 +77,6 @@ public abstract class ConfigurableApiQuota implements ApiQuota {
     protected abstract ConsumptionReport tryConsumeAndRetuningReportInternally(ApiIdentity identity,
                                                                                long token);
 
+    protected abstract Set<String> getMandatoryQuotaRuleNames();
 
 }

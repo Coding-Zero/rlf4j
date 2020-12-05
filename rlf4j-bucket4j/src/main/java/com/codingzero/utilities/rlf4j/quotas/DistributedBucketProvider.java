@@ -48,6 +48,14 @@ public class DistributedBucketProvider {
         this.mainBuckets = initBuckets(MAIN_CACHE_NAME_MARK, this.mainCaches);
         this.secondaryBuckets = initBuckets(SECONDARY_CACHE_NAME_MARK, this.secondaryCaches);
         this.isMainBuckets = new AtomicBoolean(true);
+        initAllCaches();
+    }
+
+    private void initAllCaches() {
+        if (isNeedInitialize()) {
+            initCaches(this.mainCaches);
+            initCaches(this.secondaryCaches);
+        }
     }
 
     public int getNumberOfBuckets() {

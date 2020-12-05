@@ -9,13 +9,7 @@ import io.github.bucket4j.ConsumptionProbe;
 
 public abstract class LocalApiQuota implements ApiQuota {
 
-    private static final int DEFAULT_BUCKETS_SIZE = 25;
-
     private LocalBucketProvider bucketProvider;
-
-    public LocalApiQuota() {
-        this(new LocalBucketProvider());
-    }
 
     public LocalApiQuota(LocalBucketProvider bucketProvider) {
         this.bucketProvider = bucketProvider;

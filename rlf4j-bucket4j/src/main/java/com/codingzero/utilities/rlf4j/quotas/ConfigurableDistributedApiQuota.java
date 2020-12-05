@@ -12,10 +12,6 @@ public abstract class ConfigurableDistributedApiQuota extends ConfigurableApiQuo
 
     private DistributedBucketProvider bucketProvider;
 
-    public ConfigurableDistributedApiQuota(ApiQuotaConfig config) {
-        this(config, new DistributedBucketProvider());
-    }
-
     public ConfigurableDistributedApiQuota(ApiQuotaConfig config,
                                            DistributedBucketProvider bucketProvider) {
         super(config);
@@ -55,4 +51,9 @@ public abstract class ConfigurableDistributedApiQuota extends ConfigurableApiQuo
         bucket.addTokens(token);
     }
 
+    @Override
+    public void updateConfig(ApiQuotaConfig config) {
+        super.updateConfig(config);
+        bucketProvider.clean();
+    }
 }

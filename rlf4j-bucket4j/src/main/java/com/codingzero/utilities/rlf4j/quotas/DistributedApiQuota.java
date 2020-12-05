@@ -11,10 +11,6 @@ public abstract class DistributedApiQuota implements ApiQuota {
 
     private DistributedBucketProvider bucketProvider;
 
-    public DistributedApiQuota() {
-        this(new DistributedBucketProvider());
-    }
-
     public DistributedApiQuota(DistributedBucketProvider bucketProvider) {
         this.bucketProvider = bucketProvider;
     }

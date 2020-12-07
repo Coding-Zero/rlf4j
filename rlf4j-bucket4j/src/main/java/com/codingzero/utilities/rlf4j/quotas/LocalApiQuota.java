@@ -11,6 +11,10 @@ public abstract class LocalApiQuota implements ApiQuota {
 
     private LocalBucketProvider bucketProvider;
 
+    public LocalApiQuota() {
+        this(LocalBucketProvider.builder().build());
+    }
+
     public LocalApiQuota(LocalBucketProvider bucketProvider) {
         this.bucketProvider = bucketProvider;
     }

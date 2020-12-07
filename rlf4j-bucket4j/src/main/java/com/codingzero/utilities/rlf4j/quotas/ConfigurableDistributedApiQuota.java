@@ -12,6 +12,10 @@ public abstract class ConfigurableDistributedApiQuota extends ConfigurableApiQuo
 
     private DistributedBucketProvider bucketProvider;
 
+    public ConfigurableDistributedApiQuota(ApiQuotaConfig config) {
+        this(config, DistributedBucketProvider.builder().build());
+    }
+
     public ConfigurableDistributedApiQuota(ApiQuotaConfig config,
                                            DistributedBucketProvider bucketProvider) {
         super(config);

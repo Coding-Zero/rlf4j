@@ -7,7 +7,7 @@
     <groupId>com.codingzero.utilities</groupId>
     <artifactId>rlf4j</artifactId>
     <packaging>pom</packaging>
-    <version>0.5.0</version>
+    <version>0.5.1</version>
 
     <organization>
         <name>CodingZero</name>
@@ -16,7 +16,7 @@
 
     <name>${project.groupId}:${project.artifactId}</name>
     <description>A simple rate limit facade for Java framework to abstract the way of how to setup and apply different rate limitation strategies.</description>
-    <url>https://github.com/Coding-Zero/utilities-pagination</url>
+    <url>https://https://github.com/Coding-Zero/rlf4j</url>
 
     <licenses>
         <license>

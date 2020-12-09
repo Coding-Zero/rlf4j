@@ -1,16 +1,10 @@
 package com.codingzero.utilities.rlf4j;
 
-import java.util.List;
-
 public interface RateLimiter<T> {
 
-    DefaultRateLimiter<T> quota(ApiQuota quota);
+    void setApiIdentifier(ApiIdentifier<T> identifier);
 
-    DefaultRateLimiter<T> identifier(ApiIdentifier<T> identifier);
-
-    ApiIdentifier<T> getCurrentIdentifier();
-
-    List<ApiQuota> getCurrentQuotas();
+    void addApiQuota(ApiQuota quota);
 
     <R> R tryLimit(T apiInstance, ApiExecution<R> execution) throws RateLimitExceedException;
 

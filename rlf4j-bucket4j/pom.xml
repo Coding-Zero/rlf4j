@@ -5,7 +5,7 @@
     <parent>
         <artifactId>rlf4j</artifactId>
         <groupId>com.codingzero.utilities</groupId>
-        <version>0.5.1</version>
+        <version>0.6.0</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <artifactId>rlf4j-bucket4j</artifactId>
@@ -15,7 +15,7 @@
     <properties>
         <bucket4j.version>4.10.0</bucket4j.version>
         <redisson.version>3.13.6</redisson.version>
-        <cache-api.version>1.0.0</cache-api.version>
+        <cache-api.version>1.1.1</cache-api.version>
     </properties>
 
     <dependencies>
@@ -29,7 +29,6 @@
             <groupId>javax.cache</groupId>
             <artifactId>cache-api</artifactId>
             <version>${cache-api.version}</version>
-            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>com.github.vladimir-bukhtoyarov</groupId>

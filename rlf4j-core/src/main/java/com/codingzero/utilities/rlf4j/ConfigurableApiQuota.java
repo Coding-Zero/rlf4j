@@ -72,6 +72,8 @@ public abstract class ConfigurableApiQuota implements ApiQuota {
         return tryConsumeAndRetuningReportInternally(identity, token);
     }
 
+    public abstract String getName();
+
     protected abstract boolean tryConsumeInternally(ApiIdentity identity, long token);
 
     protected abstract ConsumptionReport tryConsumeAndRetuningReportInternally(ApiIdentity identity,

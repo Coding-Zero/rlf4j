@@ -1,6 +1,5 @@
 package com.codingzero.utilities.rlf4j;
 
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -14,32 +13,21 @@ public class DefaultRateLimiter<T> implements RateLimiter<T> {
 
     private static final long DEFAULT_CONSUMING_TOKEN = 1;
 
-    private RateLimitRule<T> currentRule;
+    private ApiIdentifier<T> identifier;
+    private List<ApiQuota> apiQuotas;
 
-    private DefaultRateLimiter() {
-        this.currentRule = new RateLimitRule<>();
+    public DefaultRateLimiter() {
+        this.apiQuotas = new LinkedList<>();
     }
 
     @Override
-    public DefaultRateLimiter<T> quota(ApiQuota quota) {
-        this.currentRule.quota(quota);
-        return this;
+    public void setApiIdentifier(ApiIdentifier<T> identifier) {
+        this.identifier = identifier;
     }
 
     @Override
-    public DefaultRateLimiter<T> identifier(ApiIdentifier<T> identifier) {
-        this.currentRule.identifier(identifier);
-        return this;
-    }
-
-    @Override
-    public ApiIdentifier<T> getCurrentIdentifier() {
-        return this.currentRule.getIdentifier();
-    }
-
-    @Override
-    public List<ApiQuota> getCurrentQuotas() {
-        return this.currentRule.getApiQuotas();
+    public void addApiQuota(ApiQuota quota) {
+        this.apiQuotas.add(quota);
     }
 
     @Override
@@ -58,20 +46,12 @@ public class DefaultRateLimiter<T> implements RateLimiter<T> {
         processApiExecution(execution, exceedException, supplementRequiredQuotas);
     }
 
-    private void checkForIllegalApiInstance(Object apiInstance) {
-        if (Objects.isNull(apiInstance)) {
-            throw new IllegalArgumentException("API instance cannot be null value");
-        }
-    }
-
     private RateLimitExceedException tryLimitWithRules(T apiInstance,
                                                        Map<ApiIdentity, ApiQuota> supplementRequiredQuotas) {
-        RateLimitRule<T> rule = this.currentRule;
-        ApiIdentifier<T> identifier = rule.getIdentifier();
         verifyForNullApiIdentifier(identifier);
         ApiIdentity identity = identifyApiWithValidation(identifier, apiInstance);
-        verifyForNonEmptyApiQuotas(rule.apiQuotas);
-        for (ApiQuota quota: rule.getApiQuotas()) {
+        verifyForNonEmptyApiQuotas(this.apiQuotas);
+        for (ApiQuota quota: this.apiQuotas) {
             ConsumptionReport report = tryConsume(identity, quota, DEFAULT_CONSUMING_TOKEN);
             if (!report.isConsumed()) {
                 return new RateLimitExceedException(identity, report, quota);
@@ -82,6 +62,12 @@ public class DefaultRateLimiter<T> implements RateLimiter<T> {
         }
 
         return null;
+    }
+
+    private void checkForIllegalApiInstance(Object apiInstance) {
+        if (Objects.isNull(apiInstance)) {
+            throw new IllegalArgumentException("API instance cannot be null value");
+        }
     }
 
     private void verifyForNullApiIdentifier(ApiIdentifier<T> identifier) {
@@ -160,39 +146,6 @@ public class DefaultRateLimiter<T> implements RateLimiter<T> {
                         + " failed due to " + throwable.getMessage());
             }
         }
-    }
-
-    public static <T> RateLimiter<T> newInstance() {
-        return new DefaultRateLimiter<>();
-    }
-
-    private class RateLimitRule<T> {
-
-        private ApiIdentifier<T> identifier;
-        private List<ApiQuota> apiQuotas;
-
-        private RateLimitRule() {
-            this.apiQuotas = new LinkedList<>();
-        }
-
-        public RateLimitRule<T> quota(ApiQuota apiQuota) {
-            this.apiQuotas.add(apiQuota);
-            return this;
-        }
-
-        public RateLimitRule<T> identifier(ApiIdentifier<T> identifier) {
-            this.identifier = identifier;
-            return this;
-        }
-
-        public ApiIdentifier<T> getIdentifier() {
-            return identifier;
-        }
-
-        public List<ApiQuota> getApiQuotas() {
-            return Collections.unmodifiableList(apiQuotas);
-        }
-
     }
 
 }

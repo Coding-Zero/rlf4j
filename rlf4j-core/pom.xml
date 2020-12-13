@@ -5,7 +5,7 @@
     <parent>
         <artifactId>rlf4j</artifactId>
         <groupId>com.codingzero.utilities</groupId>
-        <version>0.6.0</version>
+        <version>0.6.1-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
@@ -13,5 +13,12 @@
 
     <properties>
     </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+    </dependencies>
 
 </project>

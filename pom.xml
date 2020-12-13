@@ -7,7 +7,7 @@
     <groupId>com.codingzero.utilities</groupId>
     <artifactId>rlf4j</artifactId>
     <packaging>pom</packaging>
-    <version>0.6.0</version>
+    <version>0.6.1-SNAPSHOT</version>
 
     <organization>
         <name>CodingZero</name>
@@ -42,12 +42,23 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.deploy.skip>true</maven.deploy.skip>
+        <slf4j.version>1.7.30</slf4j.version>
     </properties>
 
     <modules>
         <module>rlf4j-core</module>
         <module>rlf4j-bucket4j</module>
     </modules>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-api</artifactId>
+                <version>${slf4j.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <build>
         <plugins>

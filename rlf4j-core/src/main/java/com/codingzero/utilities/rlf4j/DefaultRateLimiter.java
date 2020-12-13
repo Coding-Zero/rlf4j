@@ -1,15 +1,17 @@
 package com.codingzero.utilities.rlf4j;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.logging.Logger;
 
 public class DefaultRateLimiter<T> implements RateLimiter<T> {
 
-    private static final Logger LOG = Logger.getLogger(DefaultRateLimiter.class.getName());
+    private static final Logger LOGGER = LoggerFactory.getLogger(DefaultRateLimiter.class);
 
     private static final long DEFAULT_CONSUMING_TOKEN = 1;
 
@@ -52,15 +54,27 @@ public class DefaultRateLimiter<T> implements RateLimiter<T> {
         ApiIdentity identity = identifyApiWithValidation(identifier, apiInstance);
         verifyForNonEmptyApiQuotas(this.apiQuotas);
         for (ApiQuota quota: this.apiQuotas) {
-            ConsumptionReport report = tryConsume(identity, quota, DEFAULT_CONSUMING_TOKEN);
-            if (!report.isConsumed()) {
-                return new RateLimitExceedException(identity, report, quota);
-            }
-            if (quota.isSupplementRequired()) {
-                supplementRequiredQuotas.put(identity, quota);
+            try {
+                long start = System.currentTimeMillis();
+                ConsumptionReport report = tryConsume(identity, quota, DEFAULT_CONSUMING_TOKEN);
+                long totalTime = System.currentTimeMillis() - start;
+                LOGGER.debug("[consumed] latency={}, quota={}, report={}, supplement={}\n\t\t\t\t Consumption report = {}",
+                        totalTime,
+                        quota.getClass().getName(),
+                        quota.isConsumptionReportSupported(),
+                        quota.isSupplementRequired(),
+                        report);
+                if (!report.isConsumed()) {
+                    return new RateLimitExceedException(identity, report, quota);
+                }
+                if (quota.isSupplementRequired()) {
+                    supplementRequiredQuotas.put(identity, quota);
+                }
+            } catch (RuntimeException e) {
+                LOGGER.warn("Failed to consume token = " + DEFAULT_CONSUMING_TOKEN
+                        + " from quota = " + quota + " for api = " + apiInstance + " due to " + e.getMessage());
             }
         }
-
         return null;
     }
 
@@ -139,9 +153,16 @@ public class DefaultRateLimiter<T> implements RateLimiter<T> {
             ApiIdentity identity = entry.getKey();
             ApiQuota quota = entry.getValue();
             try {
+                long start = System.currentTimeMillis();
                 quota.supplement(identity, DEFAULT_CONSUMING_TOKEN);
+                long totalTime = System.currentTimeMillis() - start;
+                LOGGER.debug("[supplemented] latency={}, quota={}, identity={}, supplied={}",
+                        totalTime,
+                        quota.getClass().getName(),
+                        identity,
+                        DEFAULT_CONSUMING_TOKEN);
             } catch (Throwable throwable) {
-                LOG.warning("Try to supplement quota " + quota.getClass()
+                LOGGER.warn("Try to supplement quota " + quota.getClass()
                         + " for API " + identity.getId()
                         + " failed due to " + throwable.getMessage());
             }

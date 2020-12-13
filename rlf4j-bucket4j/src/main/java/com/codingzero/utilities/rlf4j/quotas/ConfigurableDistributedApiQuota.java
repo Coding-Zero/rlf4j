@@ -7,24 +7,38 @@ import com.codingzero.utilities.rlf4j.ConsumptionReport;
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
 import io.github.bucket4j.ConsumptionProbe;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public abstract class ConfigurableDistributedApiQuota extends ConfigurableApiQuota {
 
-    private DistributedBucketProvider bucketProvider;
+    private static final Logger LOGGER = LoggerFactory.getLogger(ConfigurableDistributedApiQuota.class);
+
+    private DistributedBucketProvider greenBucketProvider;
+    private DistributedBucketProvider blueBucketProvider;
 
     public ConfigurableDistributedApiQuota(ApiQuotaConfig config) {
-        this(config, DistributedBucketProvider.builder().build());
+        this(
+                config,
+                DistributedBucketProvider.builder().cacheNamePrefix("caches-green").build(),
+                DistributedBucketProvider.builder().cacheNamePrefix("caches-blue").build());
     }
 
     public ConfigurableDistributedApiQuota(ApiQuotaConfig config,
-                                           DistributedBucketProvider bucketProvider) {
+                                           DistributedBucketProvider greenBucketProvider,
+                                           DistributedBucketProvider blueBucketProvider) {
         super(config);
-        this.bucketProvider = bucketProvider;
+        this.greenBucketProvider = greenBucketProvider;
+        this.blueBucketProvider = blueBucketProvider;
     }
 
     private Bucket getBucket(ApiIdentity identity) {
         String key = getBucketKey(identity);
-        return bucketProvider.get(key, identity, id -> getBandwidth(id));
+        if (isGreenConfigOn()) {
+            return greenBucketProvider.get(key, identity, this::getBandwidth);
+        } else {
+            return blueBucketProvider.get(key, identity, this::getBandwidth);
+        }
     }
 
     abstract protected Bandwidth getBandwidth(ApiIdentity identity);
@@ -50,14 +64,29 @@ public abstract class ConfigurableDistributedApiQuota extends ConfigurableApiQuo
     }
 
     @Override
+    protected void onBlueConfigUpdate(ApiQuotaConfig config) {
+        blueBucketProvider.clean();
+    }
+
+    @Override
+    protected void onBlueConfigUpdateComplete(ApiQuotaConfig config) {
+
+    }
+
+    @Override
+    protected void onGreenConfigUpdate(ApiQuotaConfig config) {
+        greenBucketProvider.clean();
+    }
+
+    @Override
+    protected void onGreenConfigUpdateComplete(ApiQuotaConfig config) {
+
+    }
+
+    @Override
     public void supplement(ApiIdentity identity, long token) {
         Bucket bucket = getBucket(identity);
         bucket.addTokens(token);
     }
 
-    @Override
-    public void updateConfig(ApiQuotaConfig config) {
-        super.updateConfig(config);
-        bucketProvider.clean();
-    }
 }

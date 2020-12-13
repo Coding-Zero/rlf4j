@@ -10,30 +10,29 @@ import io.github.bucket4j.grid.ProxyManager;
 import io.github.bucket4j.grid.jcache.JCache;
 
 import javax.cache.Cache;
+import javax.cache.CacheException;
 import javax.cache.CacheManager;
 import javax.cache.Caching;
 import javax.cache.configuration.MutableConfiguration;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.Map;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 
 public class DistributedBucketProvider {
 
     public final static int DEFAULT_NUMBER_OF_BUCKETS = 1000;
     public final static String DEFAULT_CACHE_NAME_PREFIX = "caches";
-    public final static String MAIN_CACHE_NAME_MARK = "M";
-    public final static String SECONDARY_CACHE_NAME_MARK = "S";
 
     private final int numberOfBuckets;
     private final String cacheNamePrefix;
     private final CacheManager cacheManager;
     private final boolean needInitialize;
-    private List<ProxyManager<String>> mainBuckets;
-    private List<ProxyManager<String>> secondaryBuckets;
-    private List<Cache<String, GridBucketState>> mainCaches;
-    private List<Cache<String, GridBucketState>> secondaryCaches;
-    private final AtomicBoolean isMainBuckets;
+    private List<ProxyManager<String>> buckets;
+    private Map<String, Cache<String, GridBucketState>> caches; //<cache name, cache>
 
     private DistributedBucketProvider(int numberOfBuckets,
                                      String cacheNamePrefix,
@@ -43,19 +42,16 @@ public class DistributedBucketProvider {
         this.cacheNamePrefix = cacheNamePrefix;
         this.cacheManager = cacheManager;
         this.needInitialize = needInitialize;
-        this.mainCaches = new ArrayList<>(numberOfBuckets);
-        this.secondaryCaches = new ArrayList<>(numberOfBuckets);
-        this.mainBuckets = initBuckets(MAIN_CACHE_NAME_MARK, this.mainCaches);
-        this.secondaryBuckets = initBuckets(SECONDARY_CACHE_NAME_MARK, this.secondaryCaches);
-        this.isMainBuckets = new AtomicBoolean(true);
-        initAllCaches();
+        this.caches = new HashMap<>(numberOfBuckets);
+        this.buckets = initBuckets(this.caches);
+        initCache(this.caches);
     }
 
-    private void initAllCaches() {
-        if (isNeedInitialize()) {
-            initCaches(this.mainCaches);
-            initCaches(this.secondaryCaches);
+    private void initCache(Map<String, Cache<String, GridBucketState>> caches) {
+        if (!isNeedInitialize()) {
+            return;
         }
+        cleanCache(caches);
     }
 
     public int getNumberOfBuckets() {
@@ -74,59 +70,60 @@ public class DistributedBucketProvider {
         return needInitialize;
     }
 
-    private List<ProxyManager<String>> initBuckets(String mark,
-                                                   List<Cache<String, GridBucketState>> caches) {
+    private List<ProxyManager<String>> initBuckets(Map<String, Cache<String, GridBucketState>> caches) {
         List<ProxyManager<String>> buckets = new ArrayList<>(numberOfBuckets);
         for (int i = 0; i < numberOfBuckets; i ++) {
-            String name = cacheNamePrefix + "-" + mark + "-" + i;
+            String name = cacheNamePrefix + "-" + i;
             Cache<String, GridBucketState> cache = createCache(name, cacheManager);
             buckets.add(Bucket4j.extension(JCache.class).proxyManagerForCache(cache));
-            caches.add(cache);
+            caches.put(name, cache);
         }
         return buckets;
     }
 
     private Cache<String, GridBucketState> createCache(String cacheName, CacheManager cacheManager) {
         MutableConfiguration<String, GridBucketState> configuration = new MutableConfiguration<>();
-        return cacheManager.createCache(cacheName, configuration);
+        try {
+            return cacheManager.createCache(cacheName, configuration);
+        } catch (CacheException e) {
+            if (e.getMessage().contains("already exists")) {
+                return cacheManager.getCache(cacheName);
+            }
+            throw e;
+        }
     }
 
     public Bucket get(String key, ApiIdentity identity, BandwidthSupplier bandwidthSupplier) {
-        Bandwidth bandwidth = bandwidthSupplier.get(identity);
         int bucketIndex = getBucketIndex(key);
-        return getBucket(bucketIndex, key, bandwidth);
+        return getBucket(bucketIndex, key, identity, bandwidthSupplier);
     }
 
     public void clean() {
-        if (isMainBuckets.get()) {
-            initCaches(this.secondaryCaches);
-            isMainBuckets.set(false);
-        } else {
-            initCaches(this.mainCaches);
-            isMainBuckets.set(true);
+        cleanCache(this.caches);
+    }
+
+    private void cleanCache(Map<String, Cache<String, GridBucketState>> caches) {
+        for (Map.Entry<String, Cache<String, GridBucketState>> entry: caches.entrySet()) {
+            entry.getValue().clear();
         }
     }
 
-    private void initCaches(List<Cache<String, GridBucketState>> caches) {
-        for (Cache<String, GridBucketState> cache: caches) {
-            cache.removeAll();
-        }
-    }
-
-    private Bucket getBucket(int index, String key, Bandwidth bandwidth) {
-        if (isMainBuckets.get()) {
-            return mainBuckets.get(index).getProxy(key, getBucketConfiguration(bandwidth));
-        } else {
-            return secondaryBuckets.get(index).getProxy(key, getBucketConfiguration(bandwidth));
-        }
+    private Bucket getBucket(int index, String key, ApiIdentity identity, BandwidthSupplier bandwidthSupplier) {
+        return buckets
+                .get(index)
+                .getProxy(key, getBucketConfiguration(identity, bandwidthSupplier));
     }
 
     private int getBucketIndex(String key) {
         return Math.abs(key.hashCode()) % numberOfBuckets;
     }
 
-    private Supplier<BucketConfiguration> getBucketConfiguration(Bandwidth bandwidth) {
-        return () -> Bucket4j.configurationBuilder().addLimit(bandwidth).build();
+    private Supplier<BucketConfiguration> getBucketConfiguration(ApiIdentity identity,
+                                                                 BandwidthSupplier bandwidthSupplier) {
+        return () -> {
+            Bandwidth bandwidth = bandwidthSupplier.get(identity);
+            return Bucket4j.configurationBuilder().addLimit(bandwidth).build();
+        };
     }
 
     public static Builder builder() {

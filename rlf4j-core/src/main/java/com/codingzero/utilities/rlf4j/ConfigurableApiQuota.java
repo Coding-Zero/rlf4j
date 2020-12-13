@@ -6,34 +6,42 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public abstract class ConfigurableApiQuota implements ApiQuota {
 
-    private ApiQuotaConfig mainConfig;
-    private ApiQuotaConfig secondaryConfig;
-    private final AtomicBoolean isMainBuckets;
+    private volatile ApiQuotaConfig greenConfig;
+    private volatile ApiQuotaConfig blueConfig;
+    private final AtomicBoolean isGreenConfigOn;
 
     public ConfigurableApiQuota(ApiQuotaConfig config) {
         checkForMandatoryQuotaRules(config);
-        this.mainConfig = config;
-        this.secondaryConfig = null;
-        this.isMainBuckets = new AtomicBoolean(true);
+        this.greenConfig = config;
+        this.blueConfig = null;
+        this.isGreenConfigOn = new AtomicBoolean(true);
     }
 
     public void updateConfig(ApiQuotaConfig config) {
         checkForMandatoryQuotaRules(config);
-        if (isMainBuckets.get()) {
-            this.secondaryConfig = config;
-            isMainBuckets.set(false);
+        if (isGreenConfigOn.get()) {
+            this.blueConfig = config;
+            onBlueConfigUpdate(config);
+            isGreenConfigOn.set(false);
+            onBlueConfigUpdateComplete(config);
         } else {
-            this.mainConfig = config;
-            isMainBuckets.set(true);
+            this.greenConfig = config;
+            onGreenConfigUpdate(config);
+            isGreenConfigOn.set(true);
+            onGreenConfigUpdateComplete(config);
         }
     }
 
-    public ApiQuotaConfig getCurrentConfig() {
-        if (isMainBuckets.get()) {
-            return this.mainConfig;
+    protected ApiQuotaConfig getCurrentConfig() {
+        if (isGreenConfigOn.get()) {
+            return this.greenConfig;
         } else {
-            return this.secondaryConfig;
+            return this.blueConfig;
         }
+    }
+
+    protected boolean isGreenConfigOn() {
+        return isGreenConfigOn.get();
     }
 
     private void checkForMandatoryQuotaRules(ApiQuotaConfig config) {
@@ -80,5 +88,37 @@ public abstract class ConfigurableApiQuota implements ApiQuota {
                                                                                long token);
 
     protected abstract Set<String> getMandatoryQuotaRuleNames();
+
+    /**
+     * This method is invoked as updating the blue config but before turn blue config switch on
+     * (#{@link #isGreenConfigOn()} returns true)
+     *
+     * @param config ApiQuotaConfig
+     */
+    protected abstract void onBlueConfigUpdate(ApiQuotaConfig config);
+
+    /**
+     * This method is invoked after the blue config updated and turn blue config switch on
+     * (#{@link #isGreenConfigOn()} returns false)
+     *
+     * @param config ApiQuotaConfig
+     */
+    protected abstract void onBlueConfigUpdateComplete(ApiQuotaConfig config);
+
+    /**
+     * This method is invoked as updating the green config but before turn green config switch on
+     * (#{@link #isGreenConfigOn()} returns false)
+     *
+     * @param config ApiQuotaConfig
+     */
+    protected abstract void onGreenConfigUpdate(ApiQuotaConfig config);
+
+    /**
+     * This method is invoked after the green config updated and turn green config switch on
+     * (#{@link #isGreenConfigOn()} returns true)
+     *
+     * @param config ApiQuotaConfig
+     */
+    protected abstract void onGreenConfigUpdateComplete(ApiQuotaConfig config);
 
 }

@@ -8,7 +8,6 @@ import io.github.bucket4j.Bucket4j;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -17,29 +16,17 @@ public class LocalBucketProvider {
     private static final int DEFAULT_BUCKETS_SIZE = 25;
 
     private final int numberOfBuckets;
-    private Map<String, Bucket> mainBuckets;
-    private Map<String, Bucket> secondaryBuckets;
+    private Map<String, Bucket> buckets;
     private final Lock lock;
-    private final AtomicBoolean isMainBuckets;
 
     private LocalBucketProvider(int numberOfBuckets) {
         this.numberOfBuckets = numberOfBuckets;
-        initMainBuckets();
-        initSecondaryBuckets();
+        this.buckets = new HashMap<>(numberOfBuckets);
         this.lock = new ReentrantLock();
-        this.isMainBuckets = new AtomicBoolean(true);
     }
 
     public int getNumberOfBuckets() {
         return numberOfBuckets;
-    }
-
-    private void initMainBuckets() {
-        this.mainBuckets = new HashMap<>(numberOfBuckets);
-    }
-
-    private void initSecondaryBuckets() {
-        this.secondaryBuckets = new HashMap<>(numberOfBuckets);
     }
 
     public Bucket get(String key, ApiIdentity identity, BandwidthSupplier bandwidthSupplier) {
@@ -63,29 +50,15 @@ public class LocalBucketProvider {
     }
 
     public void clean() {
-        if (isMainBuckets.get()) {
-            initSecondaryBuckets();
-            isMainBuckets.set(false);
-        } else {
-            initMainBuckets();
-            isMainBuckets.set(true);
-        }
+        this.buckets.clear();
     }
 
     private Bucket getBucket(String key) {
-        if (isMainBuckets.get()) {
-            return mainBuckets.get(key);
-        } else {
-            return secondaryBuckets.get(key);
-        }
+        return buckets.get(key);
     }
 
     private void putBucket(String key, Bucket bucket) {
-        if (isMainBuckets.get()) {
-            mainBuckets.put(key, bucket);
-        } else {
-            secondaryBuckets.put(key, bucket);
-        }
+        buckets.put(key, bucket);
     }
 
     private Bucket createBucket(Bandwidth limit) {

@@ -1,13 +1,15 @@
 package com.codingzero.utilities.rlf4j;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.logging.Logger;
 
 public class DefaultConfigurableRateLimiter<T> extends DefaultRateLimiter<T> implements ConfigurableRateLimiter<T> {
 
-    private static final Logger LOG = Logger.getLogger(DefaultConfigurableRateLimiter.class.getName());
+    private static final Logger LOGGER = LoggerFactory.getLogger(DefaultConfigurableRateLimiter.class);
 
     private Map<String, ConfigurableApiQuota> apiQuotaMap;
 
@@ -16,10 +18,21 @@ public class DefaultConfigurableRateLimiter<T> extends DefaultRateLimiter<T> imp
     }
 
     @Override
-    public void updateQuotaConfig(String name, ApiQuotaConfig config) {
+    public void updateQuotaConfig(String name, ApiQuotaConfig config) throws ApiQuotaConfigUpdateException {
         ConfigurableApiQuota quota = apiQuotaMap.get(name);
-        checkForNonExistingQuota(name, quota);
-        quota.updateConfig(config);
+        try {
+            checkForNonExistingQuota(name, quota);
+            long start = System.currentTimeMillis();
+            quota.updateConfig(config);
+            long totalTime = System.currentTimeMillis() - start;
+            LOGGER.debug("[updated] latency={} name={}, green={}, config={} ",
+                    totalTime,
+                    name,
+                    quota.isGreenConfigOn(),
+                    config);
+        } catch (RuntimeException e) {
+            throw new ApiQuotaConfigUpdateException(config, name, e);
+        }
     }
 
     @Override

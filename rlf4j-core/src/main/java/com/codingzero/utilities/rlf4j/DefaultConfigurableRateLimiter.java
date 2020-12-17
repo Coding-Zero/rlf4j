@@ -14,6 +14,11 @@ public class DefaultConfigurableRateLimiter<T> extends DefaultRateLimiter<T> imp
     private Map<String, ConfigurableApiQuota> apiQuotaMap;
 
     public DefaultConfigurableRateLimiter() {
+        this(DEFAULT_API_QUOTA_PARKING_INTERVAL);
+    }
+
+    public DefaultConfigurableRateLimiter(long apiQuotaParkingInterval) {
+        super(apiQuotaParkingInterval);
         this.apiQuotaMap = new HashMap<>();
     }
 

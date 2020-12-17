@@ -6,8 +6,10 @@ public interface RateLimiter<T> {
 
     void addApiQuota(ApiQuota quota);
 
-    <R> R tryLimit(T apiInstance, ApiExecution<R> execution) throws RateLimitExceedException;
+    <R> R tryLimit(T apiInstance, ApiExecution<R> execution)
+            throws RateLimitExceedException, RateLimitFailedException;
 
-    void tryLimitWithoutReturn(T apiInstance, ApiExecutionWithoutReturn execution) throws RateLimitExceedException;
+    void tryLimit(T apiInstance, ApiExecutionWithoutReturn execution)
+            throws RateLimitExceedException, RateLimitFailedException;
 
 }

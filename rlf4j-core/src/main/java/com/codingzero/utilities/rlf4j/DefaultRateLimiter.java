@@ -8,18 +8,31 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class DefaultRateLimiter<T> implements RateLimiter<T> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultRateLimiter.class);
 
     private static final long DEFAULT_CONSUMING_TOKEN = 1;
+    protected static final long DEFAULT_API_QUOTA_PARKING_INTERVAL = 1000 * 60 * 3; //3 minutes
 
     private ApiIdentifier<T> identifier;
-    private List<ApiQuota> apiQuotas;
+    private final List<ApiQuota> apiQuotas;
+    private final Map<ApiQuota, Long> parkedApiQuotas;
+    private final long apiQuotaParkingInterval;
+    private final AtomicBoolean hasApiQuotaParked;
 
     public DefaultRateLimiter() {
+        this(DEFAULT_API_QUOTA_PARKING_INTERVAL);
+    }
+
+    public DefaultRateLimiter(long apiQuotaParkingInterval) {
         this.apiQuotas = new LinkedList<>();
+        this.parkedApiQuotas = new ConcurrentHashMap<>();
+        this.apiQuotaParkingInterval = apiQuotaParkingInterval;
+        this.hasApiQuotaParked = new AtomicBoolean(false);
     }
 
     @Override
@@ -33,7 +46,8 @@ public class DefaultRateLimiter<T> implements RateLimiter<T> {
     }
 
     @Override
-    public <R> R tryLimit(T apiInstance, ApiExecution<R> execution) throws RateLimitExceedException {
+    public <R> R tryLimit(T apiInstance, ApiExecution<R> execution)
+            throws RateLimitExceedException, RateLimitFailedException {
         checkForIllegalApiInstance(apiInstance);
         Map<ApiIdentity, ApiQuota> supplementRequiredQuotas = new LinkedHashMap<>();
         RateLimitExceedException exceedException = tryLimitWithRules(apiInstance, supplementRequiredQuotas);
@@ -41,7 +55,8 @@ public class DefaultRateLimiter<T> implements RateLimiter<T> {
     }
 
     @Override
-    public void tryLimitWithoutReturn(T apiInstance, ApiExecutionWithoutReturn execution) throws RateLimitExceedException {
+    public void tryLimit(T apiInstance, ApiExecutionWithoutReturn execution)
+            throws RateLimitExceedException, RateLimitFailedException {
         checkForIllegalApiInstance(apiInstance);
         Map<ApiIdentity, ApiQuota> supplementRequiredQuotas = new LinkedHashMap<>();
         RateLimitExceedException exceedException = tryLimitWithRules(apiInstance, supplementRequiredQuotas);
@@ -49,15 +64,21 @@ public class DefaultRateLimiter<T> implements RateLimiter<T> {
     }
 
     private RateLimitExceedException tryLimitWithRules(T apiInstance,
-                                                       Map<ApiIdentity, ApiQuota> supplementRequiredQuotas) {
+                                                       Map<ApiIdentity, ApiQuota> supplementRequiredQuotas)
+            throws RateLimitFailedException {
         verifyForNullApiIdentifier(identifier);
-        ApiIdentity identity = identifyApiWithValidation(identifier, apiInstance);
         verifyForNonEmptyApiQuotas(this.apiQuotas);
+        ApiIdentity identity = identifyApiWithValidation(identifier, apiInstance);
         for (ApiQuota quota: this.apiQuotas) {
+            if (isApiQuotaParked(quota)) {
+                LOGGER.debug("[quota parked] quota={}", quota.getClass().getName());
+                continue;
+            }
+            long start = System.currentTimeMillis();
+            long totalTime;
             try {
-                long start = System.currentTimeMillis();
                 ConsumptionReport report = tryConsume(identity, quota, DEFAULT_CONSUMING_TOKEN);
-                long totalTime = System.currentTimeMillis() - start;
+                totalTime = System.currentTimeMillis() - start;
                 LOGGER.debug("[consumed] latency={}, quota={}, report={}, supplement={}\n\t\t\t\t Consumption report = {}",
                         totalTime,
                         quota.getClass().getName(),
@@ -65,17 +86,53 @@ public class DefaultRateLimiter<T> implements RateLimiter<T> {
                         quota.isSupplementRequired(),
                         report);
                 if (!report.isConsumed()) {
-                    return new RateLimitExceedException(identity, report, quota);
+                    return new RateLimitExceedException(identity, report, quota.getClass());
                 }
                 if (quota.isSupplementRequired()) {
                     supplementRequiredQuotas.put(identity, quota);
                 }
             } catch (RuntimeException e) {
-                LOGGER.warn("Failed to consume token = " + DEFAULT_CONSUMING_TOKEN
-                        + " from quota = " + quota + " for api = " + apiInstance + " due to " + e.getMessage());
+                totalTime = System.currentTimeMillis() - start;
+                LOGGER.debug("[failed consume] latency={}, quota={}, report={}, supplement={}, reason = {}",
+                        totalTime,
+                        quota.getClass().getName(),
+                        quota.isConsumptionReportSupported(),
+                        quota.isSupplementRequired(),
+                        e.getMessage(),
+                        e);
+                parkApiQuota(quota);
+                throw new RateLimitFailedException(identity, quota.getClass(), e);
             }
         }
         return null;
+    }
+
+    private boolean isApiQuotaParked(ApiQuota quota) {
+        if (!hasApiQuotaParked.get()) {
+            return false;
+        }
+        Long parkedAt = parkedApiQuotas.get(quota);
+        if (Objects.isNull(parkedAt)) {
+            return false;
+        }
+        long interval = System.currentTimeMillis() - parkedAt;
+        if (interval > apiQuotaParkingInterval) {
+            unparkApiQuota(quota);
+            return false;
+        }
+        return true;
+    }
+
+    private void parkApiQuota(ApiQuota quota) {
+        parkedApiQuotas.put(quota, System.currentTimeMillis());
+        hasApiQuotaParked.set(true);
+    }
+
+    private void unparkApiQuota(ApiQuota quota) {
+        parkedApiQuotas.remove(quota);
+        if (parkedApiQuotas.size() == 0) {
+            hasApiQuotaParked.set(false);
+        }
     }
 
     private void checkForIllegalApiInstance(Object apiInstance) {

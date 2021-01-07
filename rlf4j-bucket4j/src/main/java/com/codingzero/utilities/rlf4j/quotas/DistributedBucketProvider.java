@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
@@ -140,7 +141,7 @@ public class DistributedBucketProvider {
         private Builder() {
             this.numberOfBuckets = DEFAULT_NUMBER_OF_BUCKETS;
             this.cacheNamePrefix = DEFAULT_CACHE_NAME_PREFIX;
-            this.cacheManager = Caching.getCachingProvider().getCacheManager();
+            this.cacheManager = null;
             this.needInitialize = false;
         }
 
@@ -163,6 +164,9 @@ public class DistributedBucketProvider {
         }
 
         public CacheManager getCacheManager() {
+            if (Objects.isNull(cacheManager)) {
+                cacheManager = Caching.getCachingProvider().getCacheManager();
+            }
             return cacheManager;
         }
 

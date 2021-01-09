@@ -30,14 +30,18 @@ public class DefaultConfigurableRateLimiter<T> extends DefaultRateLimiter<T> imp
             long start = System.currentTimeMillis();
             quota.updateConfig(config);
             long totalTime = System.currentTimeMillis() - start;
-            LOGGER.debug("[updated] latency={} name={}, green={}, config={} ",
-                    totalTime,
-                    name,
-                    quota.isGreenConfigOn(),
-                    config);
+            logQuotaUpdateInfo(totalTime, name, quota.isGreenConfigOn(), config);
         } catch (RuntimeException e) {
             throw new ApiQuotaConfigUpdateException(config, name, e);
         }
+    }
+
+    private void logQuotaUpdateInfo(long totalTime, String name, boolean isGreen, ApiQuotaConfig config) {
+        LOGGER.debug("[updated] latency={} name={}, green={}, config={} ",
+                totalTime,
+                name,
+                isGreen,
+                config);
     }
 
     @Override

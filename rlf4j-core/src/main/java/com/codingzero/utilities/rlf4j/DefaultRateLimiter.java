@@ -17,6 +17,7 @@ public class DefaultRateLimiter<T> implements RateLimiter<T> {
 
     private static final long DEFAULT_CONSUMING_TOKEN = 1;
     protected static final long DEFAULT_API_QUOTA_PARKING_INTERVAL = 1000 * 60 * 3; //3 minutes
+    protected static final long API_QUOTA_PARKING_FOREVER = Long.MAX_VALUE;
 
     private ApiIdentifier<T> identifier;
     private final List<ApiQuota> apiQuotas;
@@ -79,12 +80,7 @@ public class DefaultRateLimiter<T> implements RateLimiter<T> {
             try {
                 ConsumptionReport report = tryConsume(identity, quota, DEFAULT_CONSUMING_TOKEN);
                 totalTime = System.currentTimeMillis() - start;
-                LOGGER.debug("[consumed] latency={}, quota={}, report={}, supplement={}\n\t\t\t\t Consumption report = {}",
-                        totalTime,
-                        quota.getClass().getName(),
-                        quota.isConsumptionReportSupported(),
-                        quota.isSupplementRequired(),
-                        report);
+                logConsumedInfo(totalTime, quota, report);
                 if (!report.isConsumed()) {
                     return new RateLimitExceedException(identity, report, quota.getClass());
                 }
@@ -92,19 +88,32 @@ public class DefaultRateLimiter<T> implements RateLimiter<T> {
                     supplementRequiredQuotas.put(identity, quota);
                 }
             } catch (RuntimeException e) {
-                totalTime = System.currentTimeMillis() - start;
-                LOGGER.debug("[failed consume] latency={}, quota={}, report={}, supplement={}, reason = {}",
-                        totalTime,
-                        quota.getClass().getName(),
-                        quota.isConsumptionReportSupported(),
-                        quota.isSupplementRequired(),
-                        e.getMessage(),
-                        e);
                 parkApiQuota(quota);
+                totalTime = System.currentTimeMillis() - start;
+                logFailedConsumedInfo(totalTime, quota, e);
                 throw new RateLimitFailedException(identity, quota.getClass(), e);
             }
         }
         return null;
+    }
+
+    private void logConsumedInfo(long totalTime, ApiQuota quota, ConsumptionReport report) {
+        LOGGER.debug("[consumed] latency={}, quota={}, report={}, supplement={}\n\t\t\t\t Consumption report = {}",
+                totalTime,
+                quota.getClass().getName(),
+                quota.isConsumptionReportSupported(),
+                quota.isSupplementRequired(),
+                report);
+    }
+
+    private void logFailedConsumedInfo(long totalTime, ApiQuota quota, RuntimeException e) {
+        LOGGER.debug("[failed consume] latency={}, quota={}, report={}, supplement={}, reason = {}",
+                totalTime,
+                quota.getClass().getName(),
+                quota.isConsumptionReportSupported(),
+                quota.isSupplementRequired(),
+                e.getMessage(),
+                e);
     }
 
     private boolean isApiQuotaParked(ApiQuota quota) {

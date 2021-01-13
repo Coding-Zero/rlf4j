@@ -5,9 +5,9 @@ import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
 import io.github.bucket4j.Bucket4j;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -21,7 +21,7 @@ public class LocalBucketProvider {
 
     private LocalBucketProvider(int numberOfBuckets) {
         this.numberOfBuckets = numberOfBuckets;
-        this.buckets = new HashMap<>(numberOfBuckets);
+        this.buckets = new ConcurrentHashMap<>(numberOfBuckets);
         this.lock = new ReentrantLock();
     }
 

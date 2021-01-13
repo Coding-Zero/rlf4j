@@ -71,6 +71,7 @@ public class DefaultRateLimiter<T> implements RateLimiter<T> {
         verifyForNonEmptyApiQuotas(this.apiQuotas);
         ApiIdentity identity = identifyApiWithValidation(identifier, apiInstance);
         for (ApiQuota quota: this.apiQuotas) {
+            LOGGER.debug("[quota] quota={}", quota.getClass().getName());
             if (isApiQuotaParked(quota)) {
                 LOGGER.debug("[quota parked] quota={}", quota.getClass().getName());
                 continue;
@@ -85,6 +86,7 @@ public class DefaultRateLimiter<T> implements RateLimiter<T> {
                     return new RateLimitExceedException(identity, report, quota.getClass());
                 }
                 if (quota.isSupplementRequired()) {
+                    LOGGER.debug("[record consumed quota] identity = {} quota={}", identity, quota);
                     supplementRequiredQuotas.put(identity, quota);
                 }
             } catch (RuntimeException e) {
@@ -172,6 +174,7 @@ public class DefaultRateLimiter<T> implements RateLimiter<T> {
     }
 
     private ConsumptionReport tryConsume(ApiIdentity identity, ApiQuota quota, long tokens) {
+        LOGGER.debug("[consuming] identity = {} quota={} token = {}", identity, quota, tokens);
         if (quota.isConsumptionReportSupported()) {
             return quota.tryConsumeAndRetuningReport(identity, tokens);
         } else {
@@ -187,6 +190,7 @@ public class DefaultRateLimiter<T> implements RateLimiter<T> {
     private <R> R processApiExecution(ApiExecution<R> execution,
                                       RateLimitExceedException exceedException,
                                       Map<ApiIdentity, ApiQuota> supplementRequiredQuotas) throws RateLimitExceedException {
+        LOGGER.debug("[api executing w/ return] execution = {} exceedException={}", execution, exceedException);
         R result = null;
         if (!isLimited(exceedException)) {
             result = execution.execute();
@@ -195,12 +199,14 @@ public class DefaultRateLimiter<T> implements RateLimiter<T> {
         if (isLimited(exceedException)) {
             throw exceedException;
         }
+        LOGGER.debug("[api executed w/ return] execution = {} result={}", execution, result);
         return result;
     }
 
     private void processApiExecution(ApiExecutionWithoutReturn execution,
                                      RateLimitExceedException exceedException,
                                      Map<ApiIdentity, ApiQuota> supplementRequiredQuotas) throws RateLimitExceedException {
+        LOGGER.debug("[api executing w/o return] execution = {} exceedException={}", execution, exceedException);
         if (!isLimited(exceedException)) {
             execution.execute();
         }
@@ -208,6 +214,7 @@ public class DefaultRateLimiter<T> implements RateLimiter<T> {
         if (isLimited(exceedException)) {
             throw exceedException;
         }
+        LOGGER.debug("[api executed w/o return] execution = {}", execution);
     }
 
     private boolean isLimited(RateLimitExceedException exceedException) {

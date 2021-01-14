@@ -19,8 +19,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Supplier;
 
 public class DistributedBucketProvider {
@@ -79,7 +78,7 @@ public class DistributedBucketProvider {
             buckets.add(Bucket4j.extension(JCache.class).proxyManagerForCache(cache));
             caches.put(name, cache);
         }
-        return buckets;
+        return new CopyOnWriteArrayList(buckets);
     }
 
     private Cache<String, GridBucketState> createCache(String cacheName, CacheManager cacheManager) {

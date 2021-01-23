@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class DefaultRateLimiter<T> implements RateLimiter<T> {
@@ -30,7 +31,7 @@ public class DefaultRateLimiter<T> implements RateLimiter<T> {
     }
 
     public DefaultRateLimiter(long apiQuotaParkingInterval) {
-        this.apiQuotas = new LinkedList<>();
+        this.apiQuotas = new CopyOnWriteArrayList<>();
         this.parkedApiQuotas = new ConcurrentHashMap<>();
         this.apiQuotaParkingInterval = apiQuotaParkingInterval;
         this.hasApiQuotaParked = new AtomicBoolean(false);
@@ -67,9 +68,11 @@ public class DefaultRateLimiter<T> implements RateLimiter<T> {
     private RateLimitExceedException tryLimitWithRules(T apiInstance,
                                                        Map<ApiIdentity, ApiQuota> supplementRequiredQuotas)
             throws RateLimitFailedException {
+        LOGGER.debug("[try limit] apiInstance = {}", apiInstance);
         verifyForNullApiIdentifier(identifier);
         verifyForNonEmptyApiQuotas(this.apiQuotas);
         ApiIdentity identity = identifyApiWithValidation(identifier, apiInstance);
+        LOGGER.debug("[try limit] identity = {}", identity);
         for (ApiQuota quota: this.apiQuotas) {
             LOGGER.debug("[quota] quota={}", quota.getClass().getName());
             if (isApiQuotaParked(quota)) {
